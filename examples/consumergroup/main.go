@@ -5,12 +5,14 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/IBM/sarama"
 )
@@ -69,6 +71,10 @@ func main() {
 	config := sarama.NewConfig()
 	config.Version = version
 
+	// Add our configurations 
+	config.Consumer.MaxProcessingTime = 30 * time.Second
+	config.ChannelBufferSize = 1
+
 	switch assignor {
 	case "sticky":
 		config.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{sarama.NewBalanceStrategySticky()}
@@ -114,6 +120,7 @@ func main() {
 			}
 			// check if context was cancelled, signaling that the consumer should stop
 			if ctx.Err() != nil {
+				log.Println("Line 117 Context cancelled")
 				return
 			}
 			consumer.ready = make(chan bool)
@@ -192,7 +199,10 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				log.Printf("message channel was closed")
 				return nil
 			}
-			log.Printf("Message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic)
+			log.Printf("Message claimed: key = %s, value = %s, timestamp = %v, topic = %s, partition = %v", string(message.Key), string(message.Value), message.Timestamp, message.Topic, message.Partition)			
+			fmt.Printf("%+v\n", message)
+			log.Printf("Going for sleep for about 70 seconds")
+			time.Sleep(70 * time.Second)
 			session.MarkMessage(message, "")
 		// Should return when `session.Context()` is done.
 		// If not, will raise `ErrRebalanceInProgress` or `read tcp <ip>:<port>: i/o timeout` when kafka rebalance. see:

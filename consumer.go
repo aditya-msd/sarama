@@ -157,6 +157,7 @@ func (c *consumer) Partitions(topic string) ([]int32, error) {
 }
 
 func (c *consumer) ConsumePartition(topic string, partition int32, offset int64) (PartitionConsumer, error) {
+	fmt.Printf("Channel Size : %d\n", c.conf.ChannelBufferSize)
 	child := &partitionConsumer{
 		consumer:             c,
 		conf:                 c.conf,
@@ -426,6 +427,7 @@ func (child *partitionConsumer) sendError(err error) {
 	}
 
 	if child.conf.Consumer.Return.Errors {
+		Logger.Println(cErr)
 		child.errors <- cErr
 	} else {
 		Logger.Println(cErr)
@@ -586,9 +588,12 @@ feederLoop:
 				child.broker.acks.Done()
 				continue feederLoop
 			case child.messages <- msg:
+				fmt.Printf("At Line 589 : Partition : %d\n", child.partition)
+				// fmt.Println("Consumer : at Line 589")
 				firstAttempt = true
 			case <-expiryTicker.C:
 				if !firstAttempt {
+					fmt.Printf("At Line 594 Ticker Expired : Partition : %d\n", child.partition)					
 					child.responseResult = errTimedOut
 					child.broker.acks.Done()
 				remainingLoop:
@@ -606,6 +611,8 @@ feederLoop:
 					// current message has not been sent, return to select
 					// statement
 					firstAttempt = false
+					fmt.Printf("At Line 612 Msg Not Sent : Partition : %d\n", child.partition)
+					// fmt.Println("Message not sent")
 					goto messageSelect
 				}
 			}
